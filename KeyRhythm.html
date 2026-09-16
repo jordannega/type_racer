@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KeyRhythm · god tier</title>
+<style>
+  :root {
+    --bg: #0e1117;
+    --bg-2: #161b22;
+    --bg-3: #1c222b;
+    --fg: #e6edf3;
+    --fg-dim: #7d8590;
+    --fg-faint: #30363d;
+    --accent: #58a6ff;
+    --accent-2: #1f6feb;
+    --correct: #3fb950;
+    --correct-bg: rgba(63, 185, 80, 0.12);
+    --incorrect: #f85149;
+    --incorrect-bg: rgba(248, 81, 73, 0.14);
+    --pending: #6e7681;
+    --border: #30363d;
+    --caret: #58a6ff;
+    --shadow: 0 24px 48px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.4);
+    --radius: 16px;
+    --mono: 'JetBrains Mono', 'Fira Mono', 'Cascadia Code', ui-monospace, monospace;
+  }
+
+  [data-theme="light"] {
+    --bg: #f5f7fb;
+    --bg-2: #ffffff;
+    --bg-3: #eef2f8;
+    --fg: #1f2a44;
+    --fg-dim: #5b6b85;
+    --fg-faint: #cbd5e1;
+    --accent: #1f6feb;
+    --accent-2: #58a6ff;
+    --correct: #0b7e4b;
+    --correct-bg: #e1f7e9;
+    --incorrect: #b81c2c;
+    --incorrect-bg: #ffe6e9;
+    --pending: #64748b;
+    --border: #dbe4ee;
+    --caret: #1f6feb;
+    --shadow: 0 20px 40px rgba(0,10,30,0.08), 0 8px 20px rgba(0,0,0,0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 16px;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  .app {
+    max-width: 980px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ---- Top bar ---- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .brand .logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid;
+    place-items: center;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 12px rgba(88,166,255,0.3);
+  }
+
+  .brand small {
+    font-size: 0.7rem;
+    color: var(--fg-dim);
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-left: 4px;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--fg-dim);
+    padding: 0.45rem 0.9rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+  }
+
+  .chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  .chip.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  /* ---- Card ---- */
+  .card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.5rem;
+    transition: background 0.3s, border-color 0.3s;
+  }
+
+  /* ---- Stats row ---- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .stat {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.7rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-dim);
+    font-weight: 600;
+  }
+
+  .stat .value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg);
+    font-family: var(--mono);
+  }
+
+  .stat .value.accent { color: var(--accent); }
+  .stat .value.good { color: var(--correct); }
+  .stat .value.bad { color: var(--incorrect); }
+
+  /* ---- Text display ---- */
+  .text-wrap {
+    position: relative;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.4rem 1.5rem;
+    margin-bottom: 14px;
+    font-family: var(--mono);
+    font-size: 1.28rem;
+    line-height: 1.85;
+    letter-spacing: 0.005em;
+    user-select: none;
+    min-height: 140px;
+    transition: filter 0.2s, opacity 0.2s;
+  }
+
+  .text-wrap.paused {
+    filter: blur(6px);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .pause-overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(0,0,0,0.35);
+    border-radius: 12px;
+    z-index: 5;
+    backdrop-filter: blur(2px);
+    cursor: pointer;
+  }
+
+  .text-wrap.paused .pause-overlay { display: flex; }
+
+  [data-theme="light"] .pause-overlay { background: rgba(255,255,255,0.4); }
+
+  .pause-overlay .msg {
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fg);
+    background: var(--bg-2);
+    padding: 0.6rem 1.2rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .pause-overlay .sub {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    color: var(--fg-dim);
+  }
+
+  .char {
+    position: relative;
+    transition: color 0.08s, background 0.08s;
+    border-radius: 3px;
+  }
+
+  .char.correct { color: var(--correct); background: var(--correct-bg); }
+  .char.incorrect { color: var(--incorrect); background: var(--incorrect-bg); text-decoration: line-through 1.5px var(--incorrect); }
+  .char.pending { color: var(--pending); }
+
+  .char.caret::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 4px;
+    bottom: 4px;
+    width: 2.5px;
+    background: var(--caret);
+    border-radius: 2px;
+    animation: blink 1s steps(2) infinite;
+    box-shadow: 0 0 8px var(--caret);
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- Input ---- */
+  textarea {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    font-family: var(--mono);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 100px;
+    background: var(--bg-2);
+    color: var(--fg);
+    outline: none;
+    transition: border 0.15s, box-shadow 0.15s, background 0.3s;
+  }
+
+  textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(88,166,255,0.18);
+  }
+
+  textarea:disabled {
+    background: var(--bg-3);
+    color: var(--fg-dim);
+    cursor: not-allowed;
+  }
+
+  /* ---- Footer actions ---- */
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s, opacity 0.2s;
+    box-shadow: 0 4px 14px rgba(88,166,255,0.25);
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(88,166,255,0.4); }
+  .btn:active:not(:disabled) { transform: translateY(0); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+  .btn.ghost {
+    background: transparent;
+    color: var(--fg-dim);
+    border: 1px solid var(--border);
+    box-shadow: none;
+  }
+
+  .btn.ghost:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: none;
+  }
+
+  /* ---- Results / Graph ---- */
+  .results-panel {
+    margin-top: 16px;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    animation: fadeIn 0.4s ease;
+  }
+
+  .results-panel.show { display: flex; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .graph-box {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+  }
+
+  .graph-box h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-dim);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  canvas { width: 100%; height: 140px; display: block; }
+
+  .word-breakdown {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    line-height: 2;
+  }
+
+  .word-breakdown h3 {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-dim);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .word {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 2px;
+    border-radius: 6px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+  }
+
+  .word.perfect { border-color: var(--correct); color: var(--correct); }
+  .word.messy { border-color: var(--incorrect); color: var(--incorrect); }
+  .word.slow { border-color: #d29922; color: #d29922; }
+
+  /* ---- Heatmap ---- */
+  .heatmap-toggle {
+    font-size: 0.85rem;
+    color: var(--fg-dim);
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+  }
+
+  .heatmap-toggle:hover { color: var(--accent); }
+
+  .heatmap {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: var(--mono);
+  }
+
+  .heatmap.show { display: flex; }
+
+  .hm-row { display: flex; gap: 4px; }
+
+  .hm-key {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--fg-dim);
+    position: relative;
+    transition: transform 0.1s;
+  }
+
+  .hm-key[data-count]:hover::after {
+    content: attr(data-count) ' misses';
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    color: var(--fg);
+    z-index: 10;
+  }
+
+  .hm-key.wide { width: 90px; }
+
+  .footer-note {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--fg-dim);
+    margin-top: 4px;
+  }
+
+  .kbd {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--fg-dim);
+  }
+</style>
+</head>
+<body data-theme="dark">
+<div class="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">⌨</div>
+      KeyRhythm <small>god tier</small>
+    </div>
+    <div class="toolbar">
+      <button class="chip" id="soundToggle" title="Toggle keystroke sound">🔊 sound</button>
+      <button class="chip" id="themeToggle" title="Toggle dark / light">🌙 dark</button>
+      <button class="chip" id="heatmapToggle" title="Show keyboard heatmap">🔥 heatmap</button>
+    </div>
+  </div>
+
+  <!-- Main card -->
+  <div class="card">
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat">
+        <span class="label">time</span>
+        <span class="value" id="statTime">0.0s</span>
+      </div>
+      <div class="stat">
+        <span class="label">wpm</span>
+        <span class="value accent" id="statWpm">0</span>
+      </div>
+      <div class="stat">
+        <span class="label">raw</span>
+        <span class="value" id="statRaw">0</span>
+      </div>
+      <div class="stat">
+        <span class="label">accuracy</span>
+        <span class="value good" id="statAcc">100%</span>
+      </div>
+      <div class="stat">
+        <span class="label">consistency</span>
+        <span class="value" id="statConsistency">—</span>
+      </div>
+    </div>
+
+    <!-- Text display -->
+    <div class="text-wrap" id="textWrap">
+      <div class="pause-overlay" id="pauseOverlay">
+        <div class="msg">⏸ paused — click to resume</div>
+        <div class="sub">timer is on hold</div>
+      </div>
+      <div id="textContainer"></div>
+    </div>
+
+    <!-- Input -->
+    <textarea id="inputArea" placeholder="Start typing here…" autofocus spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+
+    <!-- Footer actions -->
+    <div class="actions">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button class="btn" id="resetButton">↻ New test</button>
+        <button class="btn ghost" id="restartButton">⟲ Restart</button>
+      </div>
+      <label class="heatmap-toggle" id="heatmapLabel">
+        <input type="checkbox" id="heatmapCheckbox" style="accent-color: var(--accent);"> show keyboard heatmap
+      </label>
+    </div>
+
+    <!-- Results panel -->
+    <div class="results-panel" id="resultsPanel">
+      <div class="graph-box">
+        <h3>wpm over time</h3>
+        <canvas id="wpmGraph" width="900" height="140"></canvas>
+      </div>
+      <div class="word-breakdown" id="wordBreakdown">
+        <h3>word breakdown</h3>
+        <div id="wordBreakdownContent"></div>
+      </div>
+    </div>
+
+    <!-- Heatmap -->
+    <div class="heatmap" id="heatmap"></div>
+
+  </div>
+
+  <div class="footer-note">
+    <span class="kbd">Tab</span> restart · <span class="kbd">Esc</span> new test · <span class="kbd">Enter</span> finish line
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ============ PARAGRAPH POOL ============
+  const PARAGRAPHS = [
+    "The quick brown fox jumps over the lazy dog. Programming is the art of telling another human what one wants the computer to do. Typing quickly and accurately makes coding more enjoyable. Practice a little every day and you will see progress.",
+    "Simplicity is the ultimate sophistication. A good programmer is someone who always looks both ways before crossing a one-way street. The best error message is the one that never shows up. Make it work, make it right, make it fast.",
+    "In the middle of difficulty lies opportunity. Every great developer you know got there by solving problems they were unqualified to solve until they actually did it. Code is like humor. When you have to explain it, it is bad.",
+    "Talk is cheap. Show me the code. Any fool can write code that a computer can understand. Good programmers write code that humans can understand. First, solve the problem. Then, write the code.",
+    "The only way to learn a new programming language is by writing programs in it. The most disastrous thing you can ever learn is your first programming language. Patience is a virtue, and so is a good text editor.",
+    "Success is not final, failure is not fatal. It is the courage to continue that counts. The secret of getting ahead is getting started. The man who moves a mountain begins by carrying away small stones.",
+    "Stay hungry, stay foolish. Your time is limited, so do not waste it living someone else's life. The people who are crazy enough to think they can change the world are the ones who do. Innovation distinguishes between a leader and a follower."
+  ];
+
+  const LINE_HEIGHT_WPM_SAMPLES = 60; // sample WPM every 500ms for graph
+
+  // ============ STATE ============
+  let targetText = '';
+  let chars = [];              // { char, element, status }
+  let typedText = '';
+  let startTime = null;
+  let elapsedMs = 0;           // tracks accumulated elapsed when pausing
+  let timerInterval = null;
+  let testFinished = false;
+  let paused = false;
+  let correctCharsCount = 0;
+  let totalTypedChars = 0;
+  let wpmSamples = [];         // { t: secondsElapsed, wpm }
+  let lastSampleTime = 0;
+  let wordStats = [];          // per-word { target, typed, correct, startTime, endTime }
+  let missCounts = {};         // per-character misses for heatmap
+  let soundEnabled = true;
+  let audioCtx = null;
+
+  // ============ DOM ============
+  const $ = id => document.getElementById(id);
+  const textContainer = $('textContainer');
+  const textWrap = $('textWrap');
+  const pauseOverlay = $('pauseOverlay');
+  const inputArea = $('inputArea');
+  const statTime = $('statTime');
+  const statWpm = $('statWpm');
+  const statRaw = $('statRaw');
+  const statAcc = $('statAcc');
+  const statConsistency = $('statConsistency');
+  const resultsPanel = $('resultsPanel');
+  const wpmGraph = $('wpmGraph');
+  const wordBreakdownContent = $('wordBreakdownContent');
+  const heatmap = $('heatmap');
+  const heatmapCheckbox = $('heatmapCheckbox');
+  const soundToggle = $('soundToggle');
+  const themeToggle = $('themeToggle');
+  const heatmapToggle = $('heatmapToggle');
+
+  // ============ AUDIO ============
+  function initAudio() {
+    if (audioCtx) return;
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  }
+
+  function playClick(freq = 620, type = 'sine', duration = 0.035, gain = 0.04) {
+    if (!soundEnabled || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(gain, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    osc.connect(g).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  }
+
+  function playError() {
+    if (!soundEnabled || !audioCtx) return;
+    playClick(180, 'sawtooth', 0.09, 0.06);
+  }
+
+  function playFinish() {
+    if (!soundEnabled || !audioCtx) return;
+    [523, 659, 784, 1047].forEach((f, i) => {
+      setTimeout(() => playClick(f, 'sine', 0.12, 0.05), i * 90);
+    });
+  }
+
+  // ============ TIMER ============
+  function getElapsedSeconds() {
+    if (startTime === null) return elapsedMs / 1000;
+    return (elapsedMs + (Date.now() - startTime)) / 1000;
+  }
+
+  function startTimer() {
+    if (startTime !== null) return;
+    startTime = Date.now();
+    lastSampleTime = 0;
+    timerInterval = setInterval(tick, 100);
+  }
+
+  function pauseTimer() {
+    if (startTime === null || paused) return;
+    elapsedMs += Date.now() - startTime;
+    startTime = null;
+    paused = true;
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    textWrap.classList.add('paused');
+  }
+
+  function resumeTimer() {
+    if (!paused) return;
+    paused = false;
+    startTime = Date.now();
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(tick, 100);
+    textWrap.classList.remove('paused');
+    inputArea.focus();
+  }
+
+  function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    if (startTime !== null) {
+      elapsedMs += Date.now() - startTime;
+      startTime = null;
+    }
+  }
+
+  function tick() {
+    if (testFinished) return;
+    const secs = getElapsedSeconds();
+    statTime.textContent = secs.toFixed(1) + 's';
+
+    // Update live WPM / raw / accuracy
+    const minutes = secs / 60;
+    if (minutes > 0) {
+      const wpm = Math.round((correctCharsCount / 5) / minutes);
+      const raw = Math.round((totalTypedChars / 5) / minutes);
+      statWpm.textContent = wpm;
+      statRaw.textContent = raw;
+    }
+
+    // Sample WPM for graph every 0.5s
+    if (secs - lastSampleTime >= 0.5) {
+      lastSampleTime = secs;
+      if (minutes > 0) {
+        wpmSamples.push({
+          t: secs,
+          wpm: Math.round((correctCharsCount / 5) / minutes)
+        });
+      }
+    }
+
+    // Update accuracy live
+    updateAccuracyDisplay();
+  }
+
+  // ============ WORD STATS ============
+  function updateWordStats() {
+    // Rebuild word-by-word stats from typedText vs targetText
+    const targetWords = targetText.split(' ');
+    const typedWords = typedText.split(' ');
+    wordStats = [];
+    let charIndex = 0;
+
+    for (let w = 0; w < targetWords.length; w++) {
+      const targetWord = targetWords[w];
+      const typedWord = typedWords[w] !== undefined ? typedWords[w] : '';
+      // compute correctness for this word
+      let correct = 0;
+      const maxLen = Math.max(targetWord.length, typedWord.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (i < targetWord.length && i < typedWord.length && targetWord[i] === typedWord[i]) correct++;
+        else if (i < targetWord.length && typedWord[i] !== undefined) {
+          // miss — record for heatmap
+          const k = targetWord[i].toLowerCase();
+          if (k !== ' ') missCounts[k] = (missCounts[k] || 0) + 1;
+        }
+      }
+      wordStats.push({ target: targetWord, typed: typedWord, correct, length: targetWord.length });
+      charIndex += targetWord.length + 1;
+    }
+  }
+
+  // ============ HIGHLIGHTING ============
+  function updateHighlighting() {
+    const typed = typedText;
+    const target = targetText;
+    const typedLength = typed.length;
+
+    const correctness = [];
+    for (let i = 0; i < Math.min(typedLength, target.length); i++) {
+      correctness[i] = (typed[i] === target[i]);
+    }
+
+    let correctCount = 0;
+    let caretIndex = typedLength < target.length ? typedLength : -1;
+
+    for (let i = 0; i < chars.length; i++) {
+      const el = chars[i].element;
+      el.classList.remove('correct', 'incorrect', 'pending', 'caret');
+
+      if (i >= typedLength) {
+        el.classList.add('pending');
+        chars[i].status = 'pending';
+        if (i === caretIndex) el.classList.add('caret');
+      } else {
+        if (i < target.length && correctness[i] === true) {
+          el.classList.add('correct');
+          chars[i].status = 'correct';
+          correctCount++;
+        } else {
+          el.classList.add('incorrect');
+          chars[i].status = 'incorrect';
+        }
+        if (i === caretIndex) el.classList.add('caret');
+      }
+    }
+
+    correctCharsCount = correctCount;
+    totalTypedChars = typedLength;
+
+    updateAccuracyDisplay();
+    updateWordStats();
+
+    // Auto-finish when reached end
+    if (typedLength >= target.length && !testFinished) {
+      // small delay to allow last char highlight render
+      setTimeout(() => finishTest(), 60);
+    }
+  }
+
+  function updateAccuracyDisplay() {
+    const acc = totalTypedChars > 0 ? (correctCharsCount / totalTypedChars) * 100 : 100;
+    statAcc.textContent = acc.toFixed(1) + '%';
+    statAcc.classList.remove('good', 'bad');
+    if (acc >= 95) statAcc.classList.add('good');
+    else if (acc < 85) statAcc.classList.add('bad');
+  }
+
+  // ============ BUILD SPANS ============
+  function buildSpans() {
+    textContainer.innerHTML = '';
+    chars = [];
+    for (let i = 0; i < targetText.length; i++) {
+      const char = targetText[i];
+      const span = document.createElement('span');
+      span.className = 'char pending';
+      span.textContent = char === ' ' ? '\u00A0' : char;
+      chars.push({ char, element: span, status: 'pending' });
+      textContainer.appendChild(span);
+    }
+  }
+
+  // ============ CONSISTENCY ============
+  function computeConsistency() {
+    if (wpmSamples.length < 3) return null;
+    const wpms = wpmSamples.map(s => s.wpm).filter(w => w > 0);
+    if (wpms.length < 3) return null;
+    const mean = wpms.reduce((a, b) => a + b, 0) / wpms.length;
+    const variance = wpms.reduce((a, b) => a + (b - mean) ** 2, 0) / wpms.length;
+    const std = Math.sqrt(variance);
+    // consistency as percentage (100 - CV * 100, clamped 0-100)
+    const cv = mean > 0 ? (std / mean) : 1;
+    const consistency = Math.max(0, Math.min(100, 100 - cv * 100));
+    return { consistency, mean, std };
+  }
+
+  // ============ GRAPH ============
+  function drawGraph() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = wpmGraph.getBoundingClientRect();
+    const W = rect.width, H = 140;
+    wpmGraph.width = W * dpr;
+    wpmGraph.height = H * dpr;
+    const ctx = wpmGraph.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
+    const styles = getComputedStyle(document.body);
+    const accent = styles.getPropertyValue('--accent').trim();
+    const fgDim = styles.getPropertyValue('--fg-dim').trim();
+    const border = styles.getPropertyValue('--border').trim();
+
+    if (wpmSamples.length < 2) {
+      ctx.fillStyle = fgDim;
+      ctx.font = '13px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('not enough data — finish a test to see your progress', W / 2, H / 2);
+      return;
+    }
+
+    const padding = { l: 36, r: 12, t: 12, b: 22 };
+    const plotW = W - padding.l - padding.r;
+    const plotH = H - padding.t - padding.b;
+
+    const maxT = wpmSamples[wpmSamples.length - 1].t;
+    const maxW = Math.max(...wpmSamples.map(s => s.wpm), 40) * 1.15;
+
+    // grid
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 1;
+    ctx.font = '10px Inter, sans-serif';
+    ctx.fillStyle = fgDim;
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 4; i++) {
+      const y = padding.t + (plotH / 4) * i;
+      const val = Math.round(maxW * (1 - i / 4));
+      ctx.beginPath();
+      ctx.moveTo(padding.l, y);
+      ctx.lineTo(W - padding.r, y);
+      ctx.stroke();
+      ctx.fillText(val, padding.l - 6, y + 3);
+    }
+
+    // area + line
+    const points = wpmSamples.map(s => ({
+      x: padding.l + (s.t / maxT) * plotW,
+      y: padding.t + plotH - (s.wpm / maxW) * plotH
+    }));
+
+    // gradient fill
+    const grad = ctx.createLinearGradient(0, padding.t, 0, padding.t + plotH);
+    grad.addColorStop(0, accent + '66');
+    grad.addColorStop(1, accent + '00');
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, padding.t + plotH);
+    points.forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.lineTo(points[points.length - 1].x, padding.t + plotH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // line
+    ctx.beginPath();
+    points.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // dots
+    points.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = accent;
+      ctx.fill();
+    });
+
+    // x-axis label
+    ctx.fillStyle = fgDim;
+    ctx.textAlign = 'center';
+    ctx.fillText('time (s)', W / 2, H - 4);
+  }
+
+  // ============ WORD BREAKDOWN ============
+  function renderWordBreakdown() {
+    const totalTime = getElapsedSeconds();
+    const wordsPerSecond = wordStats.length / Math.max(totalTime, 0.001);
+
+    wordBreakdownContent.innerHTML = '';
+    wordStats.forEach((w, idx) => {
+      const span = document.createElement('span');
+      span.className = 'word';
+      if (w.typed === w.target && w.typed.length > 0) {
+        span.classList.add('perfect');
+      } else if (w.correct / Math.max(w.length, 1) < 0.6) {
+        span.classList.add('messy');
+      } else if (w.correct < w.length) {
+        span.classList.add('slow');
+      }
+      span.textContent = w.target;
+      span.title = `correct ${w.correct}/${w.length}`;
+      wordBreakdownContent.appendChild(span);
+      wordBreakdownContent.appendChild(document.createTextNode(' '));
+    });
+  }
+
+  // ============ HEATMAP ============
+  const KEYBOARD_ROWS = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['z','x','c','v','b','n','m']
+  ];
+
+  function renderHeatmap() {
+    heatmap.innerHTML = '';
+    const maxMiss = Math.max(1, ...Object.values(missCounts));
+    KEYBOARD_ROWS.forEach(row => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'hm-row';
+      row.forEach(k => {
+        const keyEl = document.createElement('div');
+        keyEl.className = 'hm-key';
+        keyEl.textContent = k;
+        const count = missCounts[k] || 0;
+        if (count > 0) {
+          keyEl.dataset.count = count;
+          const intensity = count / maxMiss;
+          // red gradient based on miss count
+          const r = 248, g = Math.round(81 + (1 - intensity) * 130), b = Math.round(73 + (1 - intensity) * 130);
+          keyEl.style.background = `rgba(${r}, ${g}, ${b}, ${0.15 + intensity * 0.55})`;
+          keyEl.style.color = '#fff';
+          keyEl.style.borderColor = `rgba(${r}, ${g}, ${b}, ${0.6})`;
+        }
+        rowEl.appendChild(keyEl);
+      });
+      heatmap.appendChild(rowEl);
+    });
+    // space bar
+    const spaceRow = document.createElement('div');
+    spaceRow.className = 'hm-row';
+    const spaceKey = document.createElement('div');
+    spaceKey.className = 'hm-key wide';
+    spaceKey.textContent = 'space';
+    const spaceCount = missCounts[' '] || 0;
+    if (spaceCount > 0) {
+      const intensity = spaceCount / Math.max(1, ...Object.values(missCounts));
+      spaceKey.style.background = `rgba(248, 81, 73, ${0.15 + intensity * 0.55})`;
+      spaceKey.style.color = '#fff';
+      spaceKey.dataset.count = spaceCount;
+    }
+    spaceRow.appendChild(spaceKey);
+    heatmap.appendChild(spaceRow);
+  }
+
+  // ============ FINISH ============
+  function finishTest() {
+    if (testFinished) return;
+    testFinished = true;
+    stopTimer();
+
+    const secs = getElapsedSeconds();
+    const minutes = secs / 60;
+    const finalWpm = minutes > 0 ? Math.round((correctCharsCount / 5) / minutes) : 0;
+    const finalRaw = minutes > 0 ? Math.round((totalTypedChars / 5) / minutes) : 0;
+    const finalAcc = totalTypedChars > 0 ? (correctCharsCount / totalTypedChars) * 100 : 100;
+
+    statTime.textContent = secs.toFixed(1) + 's';
+    statWpm.textContent = finalWpm;
+    statRaw.textContent = finalRaw;
+    statAcc.textContent = finalAcc.toFixed(1) + '%';
+    statAcc.classList.remove('good', 'bad');
+    if (finalAcc >= 95) statAcc.classList.add('good');
+    else if (finalAcc < 85) statAcc.classList.add('bad');
+
+    const cons = computeConsistency();
+    if (cons) {
+      statConsistency.textContent = Math.round(cons.consistency) + '%';
+      statConsistency.classList.remove('good', 'bad');
+      if (cons.consistency >= 75) statConsistency.classList.add('good');
+      else if (cons.consistency < 50) statConsistency.classList.add('bad');
+    } else {
+      statConsistency.textContent = '—';
+    }
+
+    // push final sample
+    if (minutes > 0) {
+      wpmSamples.push({ t: secs, wpm: finalWpm });
+    }
+
+    inputArea.disabled = true;
+    playFinish();
+
+    // show results
+    resultsPanel.classList.add('show');
+    drawGraph();
+    renderWordBreakdown();
+    renderHeatmap();
+  }
+
+  // ============ INPUT HANDLING ============
+  function handleInput() {
+    if (testFinished || paused) return;
+
+    const newText = inputArea.value;
+    if (newText.length > targetText.length + 20) {
+      // prevent runaway typing
+      inputArea.value = newText.slice(0, targetText.length);
+      return;
+    }
+
+    // detect new chars typed for sound & miss tracking
+    if (newText.length > typedText.length) {
+      const added = newText.slice(typedText.length);
+      for (let i = 0; i < added.length; i++) {
+        const pos = typedText.length + i;
+        if (pos < targetText.length) {
+          if (added[i] === targetText[pos]) {
+            playClick();
+          } else {
+            playError();
+            const k = targetText[pos].toLowerCase();
+            missCounts[k] = (missCounts[k] || 0) + 1;
+          }
+        }
+      }
+    }
+
+    typedText = newText;
+
+    if (typedText.length > 0 && startTime === null && !testFinished && !paused) {
+      startTimer();
+    }
+
+    updateHighlighting();
+
+    if (heatmap.classList.contains('show')) renderHeatmap();
+  }
+
+  // ============ RESET ============
+  function newTest(changeParagraph = true) {
+    stopTimer();
+    if (changeParagraph) {
+      let next;
+      do {
+        next = PARAGRAPHS[Math.floor(Math.random() * PARAGRAPHS.length)];
+      } while (next === targetText && PARAGRAPHS.length > 1);
+      targetText = next;
+    }
+    resetState();
+  }
+
+  function restartSame() {
+    stopTimer();
+    resetState();
+  }
+
+  function resetState() {
+    typedText = '';
+    startTime = null;
+    elapsedMs = 0;
+    testFinished = false;
+    paused = false;
+    correctCharsCount = 0;
+    totalTypedChars = 0;
+    wpmSamples = [];
+    lastSampleTime = 0;
+    missCounts = {};
+    wordStats = [];
+
+    inputArea.disabled = false;
+    inputArea.value = '';
+    inputArea.focus();
+
+    textWrap.classList.remove('paused');
+    resultsPanel.classList.remove('show');
+    heatmap.classList.remove('show');
+    heatmapCheckbox.checked = false;
+
+    statTime.textContent = '0.0s';
+    statWpm.textContent = '0';
+    statRaw.textContent = '0';
+    statAcc.textContent = '100%';
+    statConsistency.textContent = '—';
+    statAcc.classList.remove('good', 'bad');
+
+    buildSpans();
+    updateHighlighting();
+  }
+
+  // ============ THEME ============
+  function toggleTheme() {
+    const cur = document.body.dataset.theme;
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.body.dataset.theme = next;
+    themeToggle.textContent = next === 'dark' ? '🌙 dark' : '☀️ light';
+    if (resultsPanel.classList.contains('show')) drawGraph();
+  }
+
+  // ============ KEYBOARD SHORTCUTS ============
+  function handleGlobalKeys(e) {
+    // Tab = restart same paragraph
+    if (e.key === 'Tab' && document.activeElement === inputArea) {
+      e.preventDefault();
+      restartSame();
+    }
+    // Esc = new paragraph
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      newTest(true);
+    }
+    // Ctrl+Shift+Enter? Not needed.
+  }
+
+  // ============ FOCUS / BLUR (pause on tab away) ============
+  function handleVisibilityChange() {
+    if (document.hidden && startTime !== null && !testFinished && !paused) {
+      pauseTimer();
+    }
+  }
+
+  function handleWindowBlur() {
+    if (startTime !== null && !testFinished && !paused) {
+      pauseTimer();
+    }
+  }
+
+  // ============ INIT ============
+  function init() {
+    initAudio();
+
+    // pick initial random paragraph
+    targetText = PARAGRAPHS[Math.floor(Math.random() * PARAGRAPHS.length)];
+
+    resetState();
+
+    // event listeners
+    inputArea.addEventListener('input', handleInput);
+    inputArea.addEventListener('paste', e => {
+      // allow paste but sanitize: strip newlines
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[\r\n]+/g, ' ');
+      const current = inputArea.value;
+      const start = inputArea.selectionStart;
+      const end = inputArea.selectionEnd;
+      const newVal = current.slice(0, start) + pasted + current.slice(end);
+      inputArea.value = newVal;
+      handleInput();
+    });
+
+    // pause overlay click = resume
+    pauseOverlay.addEventListener('click', resumeTimer);
+
+    // reset buttons
+    $('resetButton').addEventListener('click', () => newTest(true));
+    $('restartButton').addEventListener('click', () => restartSame());
+
+    // theme toggle
+    themeToggle.addEventListener('click', toggleTheme);
+
+    // sound toggle
+    soundToggle.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      soundToggle.textContent = soundEnabled ? '🔊 sound' : '🔇 muted';
+      soundToggle.classList.toggle('active', soundEnabled);
+      if (soundEnabled) initAudio();
+    });
+    soundToggle.classList.add('active');
+
+    // heatmap toggle (checkbox)
+    heatmapCheckbox.addEventListener('change', () => {
+      if (heatmapCheckbox.checked) {
+        heatmap.classList.add('show');
+        renderHeatmap();
+      } else {
+        heatmap.classList.remove('show');
+      }
+    });
+
+    heatmapToggle.addEventListener('click', () => {
+      heatmapCheckbox.checked = !heatmapCheckbox.checked;
+      heatmapCheckbox.dispatchEvent(new Event('change'));
+    });
+
+    // global keys
+    document.addEventListener('keydown', handleGlobalKeys);
+
+    // pause on tab away / window blur
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+
+    // redraw graph on resize
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (resultsPanel.classList.contains('show')) drawGraph();
+      }, 120);
+    });
+
+    // focus input
+    setTimeout(() => inputArea.focus(), 100);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
